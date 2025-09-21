@@ -23,6 +23,7 @@ def choose_best_action(state, board):
 		return None
 	q_vals = [get_Q(state, a) for a in actions]
 	maxQ = max(q_vals)
+	print(f"Q-values: {dict(zip(actions, q_vals))}, Max Q: {maxQ}")
 	best_actions = [a for a in actions if get_Q(state, a) == maxQ]
 	return random.choice(best_actions)
 
@@ -68,9 +69,10 @@ while not done:
 		env.board[ai_action] = ai
 		print(f"AI chooses position {ai_action + 1}")
 
-	# env.render()
 	winner = env.check_winner()
 	if winner:
+		print("WIN")
+		env.render()
 		done = True
 		if winner == human:
 			print("You win!")
