@@ -20,6 +20,9 @@ wins = [
 ]
 
 Q = {}
+if os.path.exists("qtable.pkl"):
+	with open("qtable.pkl", "rb") as f:
+		Q = pickle.load(f)
 env = TicTacToe()
 
 # --------------------
@@ -89,6 +92,9 @@ def minimax_opponent(board, token):
 # --------------------
 # Training loop
 # --------------------
+# --------------------
+# Training loop
+# --------------------
 for episode in range(1000000):
     board = [" "] * 9
     state_str = state_to_str(board)
@@ -96,24 +102,19 @@ for episode in range(1000000):
     epsilon = max(epsilon_min, epsilon_start * (epsilon_decay ** episode))
     
     player_turn = "X"
-    first_move_done = False
 
     while not done:
         actions = available_actions(board, player_turn)
         
         if player_turn == "X":
-            # ตาแรกเลือกมุมหรือกลาง
-            if not first_move_done:
-                action = random.choice([0,2,4,6,8])
-                first_move_done = True
+            # เลือก action แบบ epsilon-greedy ทุกตา
+            if random.random() < epsilon:
+                action = random.choice(actions)
             else:
-                if random.random() < epsilon:
-                    action = random.choice(actions)
-                else:
-                    q_vals = [get_Q(state_str, a) for a in actions]
-                    maxQ = max(q_vals)
-                    best_actions = [a for a in actions if get_Q(state_str, a) == maxQ]
-                    action = random.choice(best_actions)
+                q_vals = [get_Q(state_str, a) for a in actions]
+                maxQ = max(q_vals)
+                best_actions = [a for a in actions if get_Q(state_str, a) == maxQ]
+                action = random.choice(best_actions)
             board[action] = "X"
         else:
             # Opponent
