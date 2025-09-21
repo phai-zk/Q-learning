@@ -1,88 +1,108 @@
 import pickle
+import json
 import os
+import random
 from Environment.TicTacToe import TicTacToe
 
 alpha = 0.1
 gamma = 0.9
+epsilon_start = 1.0
+epsilon_min = 0.05
+epsilon_decay = 0.9999
+num_episodes = 200000
 Q = {}
-
-if os.path.exists("qtable.pkl"):
-    with open("qtable.pkl", "rb") as f:
-        Q = pickle.load(f)
 
 env = TicTacToe()
 
 def state_to_str(state):
-    return ''.join(state)
+	return ''.join(state)
 
 def get_Q(state, action):
-    return Q.get((state, action), 0.0)
+	return Q.get((state, action), 0.0)
 
-def init_Q():
-    # generate all possible states recursively
-    def all_states(board=[" "]*9, player="X"):
-        results = []
-        winner = env.check_winner(board)
-        if winner or " " not in board:
-            return [tuple(board)]
-        results.append(tuple(board))
-        for i in range(9):
-            if board[i] == " ":
-                new_board = board.copy()
-                new_board[i] = player
-                next_player = "O" if player == "X" else "X"
-                results += all_states(new_board, next_player)
-        return list(set(results))
+def choose_action(state_str, available_actions, board, epsilon):
+    # 1. Epsilon-greedy Q-Learning
+    if random.random() < epsilon:
+        return random.choice(available_actions)  # explore
     
-    all_boards = all_states()
-    for board in all_boards:
-        state_str = ''.join(board)
-        for a in env.available_actions(list(board)):
-            if (state_str, a) not in Q:
-                Q[(state_str, a)] = 0.0
-    print(f"Initialized Q-table with {len(Q)} entries")
+    # 2. Check if opponent is about to win → block
+    opponent = "O"  # สมมติ agent = X
+    for a in available_actions:
+        temp_board = list(board)
+        temp_board[a] = opponent
+        if env.check_winner(temp_board) == opponent:
+            return a  # block opponent
 
-# --------------------
-# Recursive play for all state-action
-# --------------------
-def play_all_states(board, player):
-    state_str = state_to_str(board)
-    winner = env.check_winner(board)
+    # 3. Q-Learning max action
+    q_values = [get_Q(state_str, a) for a in available_actions]
+    max_q = max(q_values)
+    best_actions = [a for a, q in zip(available_actions, q_values) if q == max_q]
 
-    # terminal
-    if winner:
-        if winner == "X": return 1
-        elif winner == "O": return -1
-        else: return 0
+    # 4. Heuristic: corner first
+    corners = [pos for pos in best_actions if pos in [0,2,6,8]]
+    if corners:
+        return random.choice(corners)
+    
+    # 5. Heuristic: center
+    if 4 in best_actions:
+        return 4
+    
+    # 6. fallback: any best Q-action
+    return random.choice(best_actions)
 
-    actions = env.available_actions(board)
-    rewards = []
 
-    for a in actions:
-        new_board = board.copy()
-        new_board[a] = player
-        next_player = "O" if player == "X" else "X"
-        reward = play_all_states(new_board, next_player)
+# Load existing Q-table (pickle)
+if os.path.exists("qtable.pkl"):
+	with open("qtable.pkl", "rb") as f:
+		Q = pickle.load(f)
 
-        # update Q for X only
-        if player == "X":
-            oldQ = get_Q(state_str, a)
-            Q[(state_str, a)] = oldQ + alpha * (reward - oldQ)
-        
-        rewards.append(reward)
+epsilon = epsilon_start
 
-    return max(rewards) if player == "X" else min(rewards)
-# --------------------
-# Run training
-# --------------------
-init_Q()
-# Play exhaustive starting from O and X
-play_all_states([" "]*9, "O")  # O starts
-play_all_states([" "]*9, "X")  # X starts
+for episode in range(num_episodes):
+	state = env.reset()
+	state_str = state_to_str(state)
+	done = False
+	player = random.choice(["X", "O"])  # random start
 
-# --------------------
-# Save Q-table
-# --------------------
+	while not done:
+		available_actions = env.available_actions()
+		action = choose_action(state_str, available_actions, env.board, epsilon)
+		next_state, reward, done = env.step(action, player)
+		next_state_str = state_to_str(next_state)
+
+		# Q-Learning update
+		if not done:
+			future_rewards = [get_Q(next_state_str, a) for a in env.available_actions()]
+			max_future = max(future_rewards) if future_rewards else 0
+		else:
+			# reward from perspective of X
+			if reward == 1:
+				max_future = 1 if player == "X" else -1
+			elif reward == -1:
+				max_future = -1 if player == "X" else 1
+			else:
+				max_future = 0
+
+		old_q = get_Q(state_str, action)
+		Q[(state_str, action)] = old_q + alpha * (max_future - old_q)
+
+		state_str = next_state_str
+		player = "O" if player == "X" else "X"
+
+	# Decay epsilon
+	if epsilon > epsilon_min:
+		epsilon *= epsilon_decay
+
+	# Print progress every 10k episodes
+	if (episode + 1) % 10000 == 0:
+		print(f"Episode {episode + 1}/{num_episodes}, epsilon={epsilon:.4f}")
+
+# Save Q-table (pickle + JSON)
 with open("qtable.pkl", "wb") as f:
-    pickle.dump(Q, f)
+	pickle.dump(Q, f)
+
+Q_json = {f"{state}|{action}": value for (state, action), value in Q.items()}
+with open("qtable.json", "w") as f:
+	json.dump(Q_json, f)
+
 print("Training complete! Q-table saved.")
