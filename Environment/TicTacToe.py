@@ -1,43 +1,50 @@
 class TicTacToe:
-	def __init__(self):
-		self.reset()
+    def __init__(self):
+        self.wins = [
+            (0,1,2),(3,4,5),(6,7,8),
+            (0,3,6),(1,4,7),(2,5,8),
+            (0,4,8),(2,4,6)
+        ]
+        self.reset()
 
-	def reset(self):
-		self.board = [" "] * 9
-		self.done = False
-		return tuple(self.board)
+    def reset(self):
+        self.board = [" "] * 9
+        self.done = False
+        return self.get_state()
 
-	def available_actions(self):
-		return [i for i, spot in enumerate(self.board) if spot == " "]
+    def get_state(self):
+        return tuple(self.board)
 
-	def step(self, action, player="X"):
-		if self.board[action] != " ":
-			raise ValueError("Invalid action")
-		self.board[action] = player
+    def available_actions(self, board=None):
+        b = self.board if board is None else board
+        return [i for i, spot in enumerate(b) if spot == " "]
 
-		winner = self.check_winner()
-		if winner == player:
-			self.done = True
-			return tuple(self.board), 1, True
-		elif winner == "D":
-			self.done = True
-			return tuple(self.board), 0, True
-		else:
-			return tuple(self.board), 0, False
+    def check_winner(self, board=None):
+        b = self.board if board is None else board
+        for a,b1,c in self.wins:
+            if b[b1] != " " and b[b1] == b[a] == b[c]:
+                return b[a]
+        if " " not in b:
+            return "D"
+        return None
 
-	def check_winner(self):
-		wins = [(0,1,2),(3,4,5),(6,7,8),
-				(0,3,6),(1,4,7),(2,5,8),
-				(0,4,8),(2,4,6)]
-		for a,b,c in wins:
-			if self.board[a] != " " and self.board[a] == self.board[b] == self.board[c]:
-				return self.board[a]
-		if " " not in self.board:
-			return "D"
-		return None
+    def step(self, action, player):
+        if self.done or self.board[action] != " ":
+            raise ValueError("Invalid move")
+        self.board[action] = player
+        winner = self.check_winner()
+        if winner:
+            self.done = True
+            if winner == "D":
+                return self.get_state(), 0, True
+            return self.get_state(), 1 if winner=="X" else -1, True
+        return self.get_state(), 0, False
 
-	def render(self):
-		print("\n")
-		for i in range(0, 9, 3):
-			print(self.board[i:i+3])
-		print("\n")
+    def render(self):
+        b = self.board
+        print(f"{b[0]}|{b[1]}|{b[2]}")
+        print("-+-+-")
+        print(f"{b[3]}|{b[4]}|{b[5]}")
+        print("-+-+-")
+        print(f"{b[6]}|{b[7]}|{b[8]}")
+        print()

@@ -1,55 +1,80 @@
-from Environment.TicTacToe import TicTacToe
 import pickle
 import random
+from Environment.TicTacToe import TicTacToe
 
-Q = {}
+# --------------------
+# Load Q-table
+# --------------------
+with open("qtable.pkl", "rb") as f:
+	Q = pickle.load(f)
+
+# --------------------
+# Helpers
+# --------------------
+def state_to_str(state):
+	return ''.join(state)
+
+def get_Q(state, action):
+	return Q.get((state, action), 0.0)
+
+def choose_best_action(state, board):
+	actions = [i for i, spot in enumerate(board) if spot == " "]
+	if not actions:
+		return None
+	q_vals = [get_Q(state, a) for a in actions]
+	maxQ = max(q_vals)
+	best_actions = [a for a in actions if get_Q(state, a) == maxQ]
+	return random.choice(best_actions)
+
+# --------------------
+# Play loop
+# --------------------
 env = TicTacToe()
+state = tuple(env.board)
+done = False
 human = "O"
 ai = "X"
 
-try:
-	with open("qtable.pkl", "rb") as f:
-		Q = pickle.load(f)
-except FileNotFoundError:
-	print("Q-table not found. Please run Qlearn.py first.")
-	exit()
+env.reset()
 
-def choose_best_action(state):
-	actions = env.available_actions()
-	q_vals = [Q.get((state, a), 0) for a in actions]
-	maxQ = max(q_vals)
-	best_actions = [a for a in actions if Q.get((state, a), 0) == maxQ]
-	return random.choice(best_actions)
-
-print(f"Tic-Tac-Toe: You ({human}) vs AI ({ai})")
-state = env.reset()
-env.render()
-
-while not env.done:
+while not done:
 	# Human move
+	env.render()
 	try:
-		human_action = int(input("Choose position (1-9): ")) - 1;
-		state, reward, done = env.step(human_action, player=human)
-	except ValueError:
-		print("Invalid input. Try again.")
+		human_action = int(input(f"Choose ({human}) position (1-9): ")) - 1
+		if human_action not in env.available_actions():
+			print("Invalid move. Try again.")
+			continue
+		env.board[human_action] = human
+	except (ValueError, IndexError):
+		print("Invalid move. Try again.")
 		continue
 
-	env.render()
-	if done:
-		if reward == 1:
+	winner = env.check_winner()
+	if winner:
+		done = True
+		if winner == human:
 			print("You win!")
-		elif reward == 0:
+		elif winner == ai:
+			print("AI wins!")
+		else:
 			print("Draw!")
 		break
 
 	# AI move
-	ai_action = choose_best_action(state)
-	print(f"AI chooses: {ai_action}")
-	state, reward, done = env.step(ai_action, player=ai)
-	env.render()
-	if done:
-		if reward == 1:
+	state_str = state_to_str(tuple(env.board))
+	ai_action = choose_best_action(state_str, env.board)
+	if ai_action is not None:
+		env.board[ai_action] = ai
+		print(f"AI chooses position {ai_action + 1}")
+
+	# env.render()
+	winner = env.check_winner()
+	if winner:
+		done = True
+		if winner == human:
+			print("You win!")
+		elif winner == ai:
 			print("AI wins!")
-		elif reward == 0:
+		else:
 			print("Draw!")
-		break
