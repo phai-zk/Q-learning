@@ -71,7 +71,6 @@ while not done:
 
 	winner = env.check_winner()
 	if winner:
-		print("WIN")
 		env.render()
 		done = True
 		if winner == human:

@@ -86,3 +86,9 @@ play_all_states([" "]*9, "X")  # X starts
 with open("qtable.pkl", "wb") as f:
 	pickle.dump(Q, f)
 print("Training complete! Q-table saved.")
+
+import json
+
+Q_json = {str(k): v for k, v in Q.items()}
+with open("qtable.json", "w") as f:
+    json.dump(Q_json, f) 
